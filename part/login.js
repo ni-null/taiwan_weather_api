@@ -1,11 +1,5 @@
-const http = require('http')
-const path = require('path')
+
 const mysql = require('mysql')
-
-
-const rootPath = path.normalize(__dirname) + '/app.sock'
-
-
 const con_mysql_info = require("../json/con_mysql_info.json");
 const { promises } = require('fs');
 

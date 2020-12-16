@@ -16,14 +16,10 @@ const pool = mysql.createPool(con_mysql_info)
 module.exports = {
     creat_account: async function (data) {
 
+        //檢查用戶存在
         const exist = await this.check_account_exist(data.user_name)
 
-        console.log(exist)
-
-
         if (!exist) {
-
-
 
             const result = await (async function () {
                 return new Promise((resolve, reject) => {
@@ -35,10 +31,9 @@ module.exports = {
                             connection.release() // return the connection to pool
 
                             if (!err) {
-                                console.log('帳號新增成功')
-                                resolve('帳號新增成功')
+                                resolve('user_add_success:' + data.user_name)
                             } else {
-                                resolve(err)
+                                resolve('user_add_fail')
                             }
                         })
                     })
@@ -48,12 +43,9 @@ module.exports = {
 
             return result
 
-
-
-
         }
         else {
-            return ('用戶名已經存在，請替換')
+            return ('user_have_exist')
         }
 
 

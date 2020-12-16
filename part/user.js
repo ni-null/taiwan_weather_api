@@ -16,14 +16,17 @@ const pool = mysql.createPool(con_mysql_info)
 module.exports = {
 
 
-
+    //新增訂閱
     add_sub: function (user_name, sub) {
 
         return new Promise((resolve, reject) => {
             pool.getConnection((err, connection) => {
                 if (err) throw err
 
-                const sql = `insert into account_sub  (user_name,sub)Select '${user_name}','${sub}' Where not exists(select * from account_sub where user_name='${user_name}' AND sub='${sub}')`
+                const sql =
+                    `insert into account_sub  (user_name,sub)Select '${user_name}','${sub}'`
+                    +
+                    `Where not exists(select * from account_sub where user_name='${user_name}' AND sub='${sub}')`
 
 
                 connection.query(sql, (err, rows) => {
@@ -31,6 +34,37 @@ module.exports = {
 
                     if (!err) {
                         resolve('sub_success')
+
+                    } else {
+                        resolve('sub_fail')
+                    }
+
+                })
+            })
+
+        }
+
+        )
+
+    }
+
+    ,
+
+    //獲取訂閱
+    get_sub: function (user_name) {
+
+        return new Promise((resolve, reject) => {
+            pool.getConnection((err, connection) => {
+                if (err) throw err
+
+                const sql = `SELECT * FROM account_sub WHERE user_name = '${user_name}'`
+
+
+                connection.query(sql, (err, rows) => {
+                    connection.release() // return the connection to pool
+
+                    if (!err) {
+                        resolve(rows)
 
                     } else {
 
@@ -46,39 +80,6 @@ module.exports = {
         )
 
     }
-
-    ,
-
-    get_sub:
-        function (user_name) {
-
-            return new Promise((resolve, reject) => {
-                pool.getConnection((err, connection) => {
-                    if (err) throw err
-
-                    const sql = `SELECT * FROM account_sub WHERE user_name = '${user_name}'`
-
-
-                    connection.query(sql, (err, rows) => {
-                        connection.release() // return the connection to pool
-
-                        if (!err) {
-                            resolve(rows)
-
-                        } else {
-
-                            resolve(false)
-                            console.log('sub_fail')
-                        }
-
-                    })
-                })
-
-            }
-
-            )
-
-        }
     ,
     delete_sub:
         function (user_name, sub) {
@@ -99,6 +100,7 @@ module.exports = {
                         } else {
                             console.log(err)
                             resolve(false)
+
                         }
 
                     })
