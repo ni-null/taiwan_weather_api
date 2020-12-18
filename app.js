@@ -1,17 +1,21 @@
+/* express */
 const express = require('express')
 const bodyParser = require('body-parser')
-const mysql = require('mysql')
+const compression = require('compression')
+const apicache = require('apicache')
+const redis = require("redis");
+const cacheWithRedis = apicache.options({ redisClient: redis.createClient() }).middleware
 
 
-
-/* express */
 const app = express()
+
 const port = process.env.PORT || 5000
 app.listen(port, () => console.log(`Listen on port ${port}`))
 app.use(bodyParser.urlencoded({
     extended: false
 }))
 app.use(bodyParser.json())
+app.use(compression()) //壓縮
 /* express */
 
 
@@ -35,23 +39,25 @@ const register = require('./part/register')
 const login = require('./part/login')
 const user = require('./part/user')
 const telegtam = require('./part/telegtam')
+const other = require('./part/other')
 /* part */
 
 /* mysql  */
-const con_mysql_info = require("./json/con_mysql_info.json");
-const pool = mysql.createPool(con_mysql_info)
+const pool = require('./mysql');
+
 /* mysql  */
 
 
 /* session */
 const session = require('express-session');
 const { promises } = require('fs')
+const { constants } = require('buffer')
 const MySQLStore = require('express-mysql-session')(session);
 const sessionStore = new MySQLStore({
     expiration: 10800000,
     createDatabaseTable: true,	//是否創建表
     schema: {
-        tableName: 'session_tab',
+        tableName: 'account_session',
         columnNames: {
             session_id: 'session_id',
             expires: 'expires',
@@ -102,50 +108,47 @@ creat_account_sub_table_in_mysql()
 app.get('/favicon.ico', (req, res) => res.status(204));
 
 //註冊
-app.post('/account/register', (req, res) => {
+app.post('/account/register', async (req, res) => {
 
-    const user_name = req.body.user_name
-    const user_passowrd = req.body.user_passowrd
+
     const data = {
-        user_name: user_name,
-        user_passowrd: user_passowrd
+        user_name: req.body.user_name,
+        user_passowrd: req.body.user_passowrd,
+        bind_code: req.body.bind_code
     }
 
+    const reslut = await register.creat_account(data)
 
+    res.send(reslut)
 
-    register.creat_account(data).then(reslut =>
-        res.send(reslut)
-    );
 
 
 })
 
 //登入
 
-app.post('/account/login', (req, res) => {
+app.post('/account/login', async (req, res) => {
 
-    console.log(req.socket.remoteAddress)
-    const user_name = req.body.user_name
-    const user_passowrd = req.body.user_passowrd
+
     const data = {
-        user_name: user_name,
-        user_passowrd: user_passowrd
+        user_name: req.body.user_name,
+        user_passowrd: req.body.user_passowrd
     }
 
-    login.check(data).then(reslut => {
+    const reslut = await login.check(data)
 
-        if (reslut == 'success') {
-            req.session.userinfo = user_name;
-            res.send("login_success:" + req.session.userinfo);
-        }
-
-        else res.send("login_fail");
-
+    if (reslut == 'success') {
+        req.session.userinfo = req.body.user_name;
+        res.send("login_success:" + req.session.userinfo)
     }
 
-    );
+    else res.send(false)
 
-})
+}
+
+)
+
+
 
 
 //登出
@@ -155,9 +158,9 @@ app.delete('/account/login', function (req, res) {
     //註銷session
     req.session.destroy(function (err) {
         if (!err) {
-            res.send("delete_login_success");
+            res.send(true);
         } else {
-            res.send("error");
+            res.send(false);
         }
     });
 });
@@ -169,7 +172,7 @@ app.get('/account/login', (req, res) => {
     if (req.session.userinfo) {
         res.send("user_name:" + req.session.userinfo);
     } else {
-        res.send('error');
+        res.send(false);
     }
 
 
@@ -177,15 +180,12 @@ app.get('/account/login', (req, res) => {
 
 
 //新增訂閱
-app.put('/account/user/sub', (req, res) => {
+app.put('/account/user/sub', async (req, res) => {
 
     if (req.session.userinfo) {
 
-        const sub_data = req.body.sub_data
-
-        user.add_sub(req.session.userinfo, sub_data).then(reslut =>
-            res.send(reslut)
-        );
+        const reslut = await user.add_sub(req.session.userinfo, req.body.sub_data)
+        res.send(reslut)
 
     } else {
         res.send('login_fail');
@@ -195,13 +195,11 @@ app.put('/account/user/sub', (req, res) => {
 })
 
 //刪除訂閱
-app.delete('/account/user/sub', (req, res) => {
+app.delete('/account/user/sub', async (req, res) => {
     if (req.session.userinfo) {
 
-        const sub = req.body.sub
-        user.delete_sub(req.session.userinfo, sub).then(reslut =>
-            res.send(reslut)
-        );
+        const reslut = user.delete_sub(req.session.userinfo, req.body.sub)
+        res.send(reslut)
 
     } else {
         res.send('login_fail');
@@ -210,16 +208,12 @@ app.delete('/account/user/sub', (req, res) => {
 })
 
 //獲取訂閱
-app.get('/account/user/sub', (req, res) => {
+app.get('/account/user/sub', async (req, res) => {
 
     if (req.session.userinfo) {
 
-        console.log(req.session.userinfo + "獲取訂閱")
-        user.get_sub(req.session.userinfo).then(reslut =>
-            res.send(reslut)
-        );
-
-
+        const reslut = await user.get_sub(req.session.userinfo)
+        res.send(reslut)
 
     } else {
         res.send('login_fail');
@@ -231,23 +225,13 @@ app.get('/account/user/sub', (req, res) => {
 
 // 獲取資料
 
-app.get('/city/:city_name', (req, res) => {
+app.get('/city/:city_name', cacheWithRedis('3 minutes'), async (req, res) => {
 
 
-    pool.getConnection((err, connection) => {
-        if (err) throw err
+    const result = await other.get_wather([req.params.city_name])
 
-        connection.query('SELECT * from ' + [req.params.city_name], (err, rows) => {
-            connection.release() // return the connection to pool
+    res.send(result)
 
-            if (!err) {
-                res.send(rows)
-            } else {
-                res.send('get_weatger_fail')
-            }
-
-        })
-    })
 })
 
 
@@ -260,29 +244,57 @@ app.get('/city/:city_name', (req, res) => {
 /*  telegtam */
 
 
-/*  telegtam  獲取訂閱 */
-app.put('/telegtam/sub', (req, res) => {
+/*  telegtam  新增訂閱 */
+app.put('/telegtam/sub', async (req, res) => {
 
 
-    telegtam.add_sub(req.body.telegram_id, req.body.sub_data).then(reslut => {
-        res.send(reslut)
-    }
-    );
+    const reslut = telegtam.add_sub(req.body.telegram_id, req.body.sub_data)
+
+    res.send(reslut)
+
 
 })
 
 /*  telegtam  刪除訂閱 */
 
-app.delete('/telegtam/sub', (req, res) => {
+app.delete('/telegtam/sub', async (req, res) => {
 
+    const reslut = await telegtam.delete_sub(req.body.telegram_id, req.body.sub_data)
+
+    res.send(reslut)
 
 })
 
 
-/*  telegtam 查詢訂閱 */
+/*  telegtam 獲取訂閱 */
 
-app.get('/telegtam/sub', (req, res) => {
+app.get('/telegtam/sub/:telegram_id', async (req, res) => {
 
+
+    const reslut = await telegtam.get_sub([req.params.telegram_id])
+
+    res.send(reslut)
+
+})
+
+/*  telegtam  綁定 */
+
+app.post('/telegtam/bind', async (req, res) => {
+
+    const reslut = await telegtam.bind_user(req.body.telegram_id, req.body.bind_code)
+
+    res.send(reslut)
+
+})
+
+
+/*  telegtam  解除綁定 */
+
+app.delete('/telegtam/bind', async (req, res) => {
+
+    const reslut = await telegtam.unbind_user(req.body.telegram_id)
+
+    res.send(reslut)
 
 })
 
@@ -300,9 +312,10 @@ function creat_account_table_in_mysql() {
 
         const sql = `create table if not exists account(
             id int primary key auto_increment,
-            user_name varchar(255) ,
-            user_passowrd varchar(255) ,
-            telegram_id varchar(255) 
+            user_name varchar(128) not null,
+            user_passowrd varchar(128) not null,
+            telegram_id varchar(128)not null ,
+            bind_code  varchar(128) not null
         )`
         connection.query(sql, (err, rows) => {
             connection.release() // return the connection to pool
@@ -328,8 +341,8 @@ function creat_account_sub_table_in_mysql() {
 
         const sql = `create table if not exists account_sub(
             id int primary key auto_increment,
-            user_name varchar(255) ,
-            telegram_id varchar(255) ,
+            user_name varchar(255)not null ,
+            telegram_id varchar(255) not null ,
             sub varchar(255) not null
         )`
         connection.query(sql, (err, rows) => {

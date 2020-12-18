@@ -1,17 +1,5 @@
-const http = require('http')
-const path = require('path')
-const mysql = require('mysql')
+const pool = require('../mysql');
 
-
-const rootPath = path.normalize(__dirname) + '/app.sock'
-
-
-const con_mysql_info = require("../json/con_mysql_info.json");
-const { promises } = require('fs');
-
-
-// MySQL 連接
-const pool = mysql.createPool(con_mysql_info)
 
 module.exports = {
     creat_account: async function (data) {
@@ -33,6 +21,7 @@ module.exports = {
                             if (!err) {
                                 resolve('user_add_success:' + data.user_name)
                             } else {
+                                console.log(err)
                                 resolve('user_add_fail')
                             }
                         })

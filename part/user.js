@@ -1,32 +1,37 @@
-const http = require('http')
-const path = require('path')
-const mysql = require('mysql')
+const pool = require('../mysql');
 
 
-const rootPath = path.normalize(__dirname) + '/app.sock'
-
-
-const con_mysql_info = require("../json/con_mysql_info.json");
-const { promises } = require('fs');
-
-
-// MySQL 連接
-const pool = mysql.createPool(con_mysql_info)
 
 module.exports = {
 
 
     //新增訂閱
-    add_sub: function (user_name, sub) {
+    add_sub: async function (user_name, sub) {
+
+        const acconut_info = await get_acconut_info(user_name)
+
+        console.log()
 
         return new Promise((resolve, reject) => {
             pool.getConnection((err, connection) => {
                 if (err) throw err
 
-                const sql =
-                    `insert into account_sub  (user_name,sub)Select '${user_name}','${sub}'`
-                    +
-                    `Where not exists(select * from account_sub where user_name='${user_name}' AND sub='${sub}')`
+                let slq
+
+                if (acconut_info.telegram_id != null) {
+                    sql =
+                        `insert into account_sub  (user_name,telegram_id,sub)Select '${user_name}','${acconut_info.telegram_id}','${sub}'`
+                        +
+                        `Where not exists(select * from account_sub where user_name='${user_name}' AND sub='${sub}' AND telegram_id='${acconut_info.telegram_id}')`
+                }
+
+                else {
+                    sql =
+                        `insert into account_sub  (user_name,sub)Select '${user_name}','${sub}'`
+                        +
+                        `Where not exists(select * from account_sub where user_name='${user_name}' AND sub='${sub}')`
+                }
+
 
 
                 connection.query(sql, (err, rows) => {
@@ -36,6 +41,7 @@ module.exports = {
                         resolve('sub_success')
 
                     } else {
+                        console.log(err)
                         resolve('sub_fail')
                     }
 
@@ -67,9 +73,8 @@ module.exports = {
                         resolve(rows)
 
                     } else {
-
+                        console.log(err)
                         resolve(false)
-                        console.log('sub_fail')
                     }
 
                 })
@@ -81,40 +86,64 @@ module.exports = {
 
     }
     ,
-    delete_sub:
-        function (user_name, sub) {
+    delete_sub: function (user_name, sub) {
 
-            return new Promise((resolve, reject) => {
-                pool.getConnection((err, connection) => {
-                    if (err) throw err
+        return new Promise((resolve, reject) => {
+            pool.getConnection((err, connection) => {
+                if (err) throw err
 
-                    const sql = `DELETE FROM account_sub WHERE user_name = '${user_name}' AND sub = '${sub}'`
+                const sql = `DELETE FROM account_sub WHERE user_name = '${user_name}' AND sub = '${sub}'`
 
 
-                    connection.query(sql, (err, rows) => {
-                        connection.release() // return the connection to pool
+                connection.query(sql, (err, rows) => {
+                    connection.release() // return the connection to pool
 
-                        if (!err) {
-                            resolve(true)
+                    if (!err) {
+                        resolve(true)
 
-                        } else {
-                            console.log(err)
-                            resolve(false)
+                    } else {
+                        console.log(err)
+                        resolve(false)
 
-                        }
+                    }
 
-                    })
                 })
-
-            }
-
-            )
+            })
 
         }
+
+        )
+
+    }
 
 }
 
 
 
+
+
+//獲取帳戶資訊
+function get_acconut_info(user_name) {
+    return new Promise((resolve, reject) => {
+
+        pool.getConnection((err, connection) => {
+
+            const sql = `SELECT * FROM  account WHERE user_name = '${user_name}'`
+
+            connection.query(sql, (err, rows) => {
+                connection.release() // return the connection to pool
+
+                if (!err) {
+                    resolve(rows[0])
+                }
+                else console.log(err)
+
+            })
+        })
+
+    })
+
+
+}
 
 

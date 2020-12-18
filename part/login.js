@@ -1,11 +1,6 @@
-
-const mysql = require('mysql')
-const con_mysql_info = require("../json/con_mysql_info.json");
-const { promises } = require('fs');
+const pool = require('../mysql');
 
 
-// MySQL 連接
-const pool = mysql.createPool(con_mysql_info)
 
 module.exports = {
     check: async function (data) {
@@ -13,7 +8,6 @@ module.exports = {
         //檢查用戶名是否存在
         const exist = await this.check_account_exist(data.user_name)
 
-        console.log(exist)
 
         //存在
         if (exist) {
@@ -35,10 +29,10 @@ module.exports = {
                             if (!err) {
 
                                 if (rows[0] == null) resolve('passowrd_error')
-
-                                return resolve('success')
+                                else resolve('success')
                             } else {
-                                return resolve(err)
+                                console.log(err)
+                                resolve(false)
                             }
                         })
                     })
@@ -52,6 +46,7 @@ module.exports = {
 
         }
         else {
+
             return ('user no exsit')
         }
 
