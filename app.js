@@ -35,10 +35,9 @@ app.use(cors({
 
 
 /* part */
-const register = require('./part/register')
-const login = require('./part/login')
+const account = require('./part/account');
 const user = require('./part/user')
-const telegtam = require('./part/telegtam')
+const telegram = require('./part/telegram')
 const other = require('./part/other')
 /* part */
 
@@ -51,7 +50,7 @@ const pool = require('./mysql');
 /* session */
 const session = require('express-session');
 const { promises } = require('fs')
-const { constants } = require('buffer')
+const { constants } = require('buffer');
 const MySQLStore = require('express-mysql-session')(session);
 const sessionStore = new MySQLStore({
     expiration: 10800000,
@@ -89,10 +88,10 @@ app.use(session({
 
 
 //帳號資料表
-creat_account_table_in_mysql()
+other.creat_account_table_in_mysql()
 
 //訂閱資料表
-creat_account_sub_table_in_mysql()
+other.creat_account_sub_table_in_mysql()
 
 
 /* MySQL  創建資料表 */
@@ -114,10 +113,11 @@ app.post('/account/register', async (req, res) => {
     const data = {
         user_name: req.body.user_name,
         user_passowrd: req.body.user_passowrd,
+        telegram_id: '',
         bind_code: req.body.bind_code
     }
 
-    const reslut = await register.creat_account(data)
+    const reslut = await account.creat_account(data)
 
     res.send(reslut)
 
@@ -135,9 +135,9 @@ app.post('/account/login', async (req, res) => {
         user_passowrd: req.body.user_passowrd
     }
 
-    const reslut = await login.check(data)
+    const reslut = await account.check_login(data)
 
-    if (reslut == 'success') {
+    if (reslut) {
         req.session.userinfo = req.body.user_name;
         res.send("login_success:" + req.session.userinfo)
     }
@@ -148,15 +148,41 @@ app.post('/account/login', async (req, res) => {
 
 )
 
+//修改密碼
+app.post('/account/change_password', async (req, res) => {
+    if (req.session.userinfo) {
+        const data = {
+            user_name: req.session.userinfo,
+            user_passowrd_old: req.body.user_passowrd_old,
+            user_passowrd_new: req.body.user_passowrd_new
+        }
+
+
+        const reslut = await account.change_passowrd(data)
+
+        if (reslut) {
+            res.send(true)
+        }
+        else {
+            res.send(false)
+        }
+
+    }
+
+    else res.send('login_fail')
+
+}
+
+)
 
 
 
 //登出
 
-app.delete('/account/login', function (req, res) {
+app.delete('/account/login', (req, res) => {
 
     //註銷session
-    req.session.destroy(function (err) {
+    req.session.destroy((err) => {
         if (!err) {
             res.send(true);
         } else {
@@ -222,8 +248,35 @@ app.get('/account/user/sub', async (req, res) => {
 })
 
 
+//獲取telegram code
+app.get('/account/telegram', async (req, res) => {
 
-// 獲取資料
+
+    if (req.session.userinfo) {
+
+        const result = await account.get_telegram(req.session.userinfo)
+
+        if (result) {
+            if (result.telegram_username == '')
+                res.send('bind_code:' + result.bind_code);
+            else
+                res.send('telegram_username:' + result.telegram_username);
+
+        }
+    } else {
+        res.send('login_fail');
+    }
+
+
+
+
+
+
+})
+
+
+
+// 獲取天氣資料
 
 app.get('/city/:city_name', cacheWithRedis('3 minutes'), async (req, res) => {
 
@@ -237,126 +290,80 @@ app.get('/city/:city_name', cacheWithRedis('3 minutes'), async (req, res) => {
 
 
 
-/*  telegtam */
-/*  telegtam */
-/*  telegtam */
-/*  telegtam */
-/*  telegtam */
+/*  telegram */
+/*  telegram */
+/*  telegram */
+/*  telegram */
+/*  telegram */
 
 
-/*  telegtam  新增訂閱 */
-app.put('/telegtam/sub', async (req, res) => {
+/*  telegram  新增訂閱 */
+app.put('/telegram/sub', async (req, res) => {
 
 
-    const reslut = telegtam.add_sub(req.body.telegram_id, req.body.sub_data)
+    const reslut = telegram.add_sub(req.body.telegram_id, req.body.sub_data, req.body.telegram_username)
 
     res.send(reslut)
 
 
 })
 
-/*  telegtam  刪除訂閱 */
+/*  telegram  刪除訂閱 */
 
-app.delete('/telegtam/sub', async (req, res) => {
+app.delete('/telegram/sub', async (req, res) => {
 
-    const reslut = await telegtam.delete_sub(req.body.telegram_id, req.body.sub_data)
-
-    res.send(reslut)
-
-})
-
-
-/*  telegtam 獲取訂閱 */
-
-app.get('/telegtam/sub/:telegram_id', async (req, res) => {
-
-
-    const reslut = await telegtam.get_sub([req.params.telegram_id])
-
-    res.send(reslut)
-
-})
-
-/*  telegtam  綁定 */
-
-app.post('/telegtam/bind', async (req, res) => {
-
-    const reslut = await telegtam.bind_user(req.body.telegram_id, req.body.bind_code)
+    const reslut = await telegram.delete_sub(req.body.telegram_id, req.body.sub_data)
 
     res.send(reslut)
 
 })
 
 
-/*  telegtam  解除綁定 */
+/*  telegram 獲取訂閱 */
 
-app.delete('/telegtam/bind', async (req, res) => {
+app.get('/telegram/sub/:telegram_id', async (req, res) => {
 
-    const reslut = await telegtam.unbind_user(req.body.telegram_id)
+
+    const reslut = await telegram.get_sub([req.params.telegram_id])
 
     res.send(reslut)
 
 })
 
 
+/*  telegram  檢查綁定狀態 */
+
+app.get('/telegram/bind/:telegram_id', async (req, res) => {
+
+    const reslut = await telegram.bind_user_check([req.params.telegram_id])
+
+    res.send(reslut)
+
+})
+
+/*  telegram  綁定 */
+
+app.post('/telegram/bind', async (req, res) => {
 
 
 
+    const reslut = await telegram.bind_user(req.body.telegram_id, req.body.bind_code, req.body.telegram_username)
+
+    res.send(reslut)
+
+})
 
 
-function creat_account_table_in_mysql() {
+/*  telegram  解除綁定 */
+
+app.delete('/telegram/bind', async (req, res) => {
+
+    const reslut = await telegram.unbind_user(req.body.telegram_id)
+
+    res.send(reslut)
+
+})
 
 
-    pool.getConnection((err, connection) => {
-        if (err) throw err
-
-        const sql = `create table if not exists account(
-            id int primary key auto_increment,
-            user_name varchar(128) not null,
-            user_passowrd varchar(128) not null,
-            telegram_id varchar(128)not null ,
-            bind_code  varchar(128) not null
-        )`
-        connection.query(sql, (err, rows) => {
-            connection.release() // return the connection to pool
-
-            if (err) {
-                console.log(err)
-
-            }
-        })
-    })
-
-
-
-}
-
-
-
-function creat_account_sub_table_in_mysql() {
-
-
-    pool.getConnection((err, connection) => {
-        if (err) throw err
-
-        const sql = `create table if not exists account_sub(
-            id int primary key auto_increment,
-            user_name varchar(255)not null ,
-            telegram_id varchar(255) not null ,
-            sub varchar(255) not null
-        )`
-        connection.query(sql, (err, rows) => {
-            connection.release() // return the connection to pool
-
-            if (err) {
-                console.log(err)
-
-            }
-        })
-    })
-
-
-
-}
 
 

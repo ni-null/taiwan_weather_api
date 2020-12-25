@@ -9,11 +9,11 @@ module.exports = {
 
 
 
-    add_sub: async function (telegtam_id, sub_data) {
+    add_sub: async function (telegtam_id, sub_data, telegram_username) {
 
 
         //檢查telegtam_id是否存在沒有則新增至 account
-        const check_result = await check_acconut_exist(telegtam_id)
+        const check_result = await check_acconut_exist(telegtam_id, telegram_username)
 
 
         //獲取帳戶資料
@@ -47,7 +47,6 @@ module.exports = {
                     } else {
 
                         resolve(false)
-                        console.log('sub_fail')
                     }
 
                 })
@@ -91,7 +90,21 @@ module.exports = {
     }
 
     ,
-    bind_user: async function (telegram_id, bind_code) {
+    bind_user_check: async function (telegram_id) {
+
+
+        //檢查綁定狀態
+        const get_acconut_info_result = await get_acconut_info(telegram_id)
+
+
+        if (get_acconut_info_result != undefined) return get_acconut_info_result.user_name
+
+        else return null
+
+
+    }
+    ,
+    bind_user: async function (telegram_id, bind_code, telegram_username) {
 
         //檢查綁定碼，bind_code_result 取得用戶名
         const bind_code_result = await check_bind_code(bind_code)
@@ -104,7 +117,7 @@ module.exports = {
 
 
         //綁定帳號與資料，傳入bind_code_result取得的用戶名
-        const acconut_bind_result = await acconut_bind(telegram_id, bind_code_result)
+        const acconut_bind_result = await acconut_bind(telegram_id, bind_code_result, telegram_username)
         if (!acconut_bind_result) return '綁定失敗，請再試一次'
 
 
@@ -139,15 +152,16 @@ module.exports = {
 
 
 //檢查telegtam_id是否存在沒有則新增至 account ，true
-function check_acconut_exist(telegram_id) {
+function check_acconut_exist(telegram_id, telegram_username) {
 
 
     return new Promise((resolve, reject) => {
         pool.getConnection((err, connection) => {
             if (err) throw err
 
+
             const sql =
-                `insert into account  (telegram_id)Select '${telegram_id}'`
+                `insert into account  (telegram_id,telegram_username)Select '${telegram_id}','${telegram_username}'`
                 +
                 `Where not exists(select * from account where telegram_id='${telegram_id}')`
 
@@ -176,6 +190,8 @@ function get_acconut_info(telegram_id) {
         pool.getConnection((err, connection) => {
 
             const sql = `SELECT * FROM  account WHERE telegram_id = '${telegram_id}'`
+
+
 
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool
@@ -224,7 +240,7 @@ async function check_acconut_bind(telegram_id) {
 
 //telegtam_id綁定
 
-async function acconut_bind(telegram_id, user_name) {
+async function acconut_bind(telegram_id, user_name, telegram_username) {
 
 
     return new Promise((resolve, reject) => {
@@ -234,7 +250,7 @@ async function acconut_bind(telegram_id, user_name) {
         pool.getConnection((err, connection) => {
 
 
-            const sql = `UPDATE account SET telegram_id='${telegram_id}',bind_code='' WHERE user_name = '${user_name}'`
+            const sql = `UPDATE account SET telegram_id='${telegram_id}',bind_code='', telegram_username='${telegram_username}' WHERE user_name = '${user_name}'`
 
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool
@@ -280,7 +296,7 @@ async function acconut_bind_un_bild(telegram_id) {
 
         pool.getConnection((err, connection) => {
 
-            const sql = `UPDATE account SET telegram_id='',bind_code='TG@${md5(user_name).substr(0, 5)}' WHERE user_name = '${user_name}'`
+            const sql = `UPDATE account SET telegram_id='',bind_code='TG@${md5(user_name).substr(0, 5)}', telegram_username='' WHERE user_name = '${user_name}'`
 
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool
