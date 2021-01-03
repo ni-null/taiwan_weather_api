@@ -11,9 +11,8 @@ xampp : https://www.apachefriends.org/zh_tw/download.html
 redis : https://github.com/microsoftarchive/redis/releases
 
 
-## 初次運行
+## 運行
 
-README.md
 
 ```
 git clone https://github.com/ni-null/taiwan_weather_api.git
