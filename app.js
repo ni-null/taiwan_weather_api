@@ -119,6 +119,7 @@ app.post('/account/register', async (req, res) => {
         user_name: req.body.user_name,
         user_passowrd: req.body.user_passowrd,
         telegram_id: '',
+        telegram_username: '',
         bind_code: req.body.bind_code
     }
 
