@@ -54,6 +54,8 @@ module.exports = {
         //檢查用戶名是否存在
         const exist = await check_account_exist(data.user_name)
 
+
+
         //存在
         if (exist) {
 
@@ -78,7 +80,7 @@ module.exports = {
         //檢查舊密碼
         const check_passowrd_result = await check_passowrd(data.user_name, data.user_passowrd_old)
 
-        console.log(check_passowrd_result)
+
 
         if (check_passowrd_result) {
 
@@ -148,7 +150,7 @@ function check_passowrd(user_name, user_passowrd) {
         pool.getConnection((err, connection) => {
             if (err) throw err
 
-            const sql = `SELECT * FROM account WHERE user_name  = '${user_name}' AND user_passowrd  = '${user_passowrd}' `
+            const sql = `SELECT 1 FROM account WHERE user_name  = '${user_name}' AND user_passowrd  = '${user_passowrd}' `
 
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool

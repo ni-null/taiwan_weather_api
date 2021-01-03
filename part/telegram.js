@@ -9,15 +9,22 @@ module.exports = {
 
 
 
-    add_sub: async function (telegtam_id, sub_data, telegram_username) {
+    add_sub: async function (telegram_id, sub_data, telegram_username) {
 
 
-        //檢查telegtam_id是否存在沒有則新增至 account
-        const check_result = await check_acconut_exist(telegtam_id, telegram_username)
+        //檢查telegram_id 是否存在沒有則新增至 account
+        await check_acconut_exist(telegram_id, telegram_username)
+
+
+        //計算當前訂閱數量是否達上限
+        const sub_count = await telegram_sub_count(telegram_id)
+
+        //   console.log(sub_count['COUNT(sub)'])
+        if (sub_count['COUNT(sub)'] >= 10) return 'max'
 
 
         //獲取帳戶資料
-        const account_info = await get_acconut_info(telegtam_id)
+        const account_info = await get_acconut_info(telegram_id)
 
         //傳送訂閱資料
         const sub_result = await sub_send(sub_data, account_info.telegram_id, account_info.user_name)
@@ -151,7 +158,7 @@ module.exports = {
 
 
 
-//檢查telegtam_id是否存在沒有則新增至 account ，true
+//檢查telegram_id是否存在沒有則新增至 account ，true
 function check_acconut_exist(telegram_id, telegram_username) {
 
 
@@ -160,10 +167,11 @@ function check_acconut_exist(telegram_id, telegram_username) {
             if (err) throw err
 
 
+
             const sql =
                 `insert into account  (telegram_id,telegram_username)Select '${telegram_id}','${telegram_username}'`
                 +
-                `Where not exists(select * from account where telegram_id='${telegram_id}')`
+                `Where not exists(select 1 from account where telegram_id='${telegram_id}')`
 
 
             connection.query(sql, (err, rows) => {
@@ -206,7 +214,7 @@ function get_acconut_info(telegram_id) {
 
 }
 
-//檢查telegtam_id是否已經綁定，true(以綁)，false(未綁)
+//檢查telegram_id是否已經綁定，true(以綁)，false(未綁)
 async function check_acconut_bind(telegram_id) {
 
     //檢查帳號存在，沒有就創建
@@ -218,7 +226,7 @@ async function check_acconut_bind(telegram_id) {
 
             const sql = `SELECT * FROM  account WHERE telegram_id = '${telegram_id}'AND user_name = ''limit 1 `
 
-            console.log(sql)
+
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool
 
@@ -238,7 +246,7 @@ async function check_acconut_bind(telegram_id) {
 }
 
 
-//telegtam_id綁定
+//telegram_id綁定
 
 async function acconut_bind(telegram_id, user_name, telegram_username) {
 
@@ -296,14 +304,18 @@ async function acconut_bind_un_bild(telegram_id) {
 
         pool.getConnection((err, connection) => {
 
-            const sql = `UPDATE account SET telegram_id='',bind_code='TG@${md5(user_name).substr(0, 5)}', telegram_username='' WHERE user_name = '${user_name}'`
+            const sql =
+                //刪除帳好連接
+                `UPDATE account SET telegram_id='',bind_code='TG@${md5(user_name).substr(0, 5)}', telegram_username='' WHERE user_name = '${user_name}'`
+
+                //刪除tg訂閱
+                + `;UPDATE account_sub SET telegram_id=''WHERE telegram_id = '${telegram_id}'`
+
 
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool
 
                 if (!err) {
-                    //刪除telegram_id訂閱資料
-                    remove_account_sub_telegram_id(telegram_id)
                     resolve(true)
                 }
 
@@ -325,7 +337,7 @@ async function acconut_bind_un_bild(telegram_id) {
 }
 
 
-//檢查bind_code存在，存在ture
+//檢查bind_code存在，存在回傳user_name
 function check_bind_code(bind_code) {
     return new Promise((resolve, reject) => {
 
@@ -360,17 +372,20 @@ async function merge_sub_data_input(telegram_id) {
     return new Promise((resolve, reject) => {
         pool.getConnection((err, connection) => {
 
-            const sql =
+            let sql =
+                //添加合併的帳號
                 ` UPDATE account_sub SET user_name = '${acconut_info.user_name}' ,telegram_id = '${telegram_id}'  `
                 + `WHERE  telegram_id = '${telegram_id}' OR user_name =  '${acconut_info.user_name}'`
-            console.log(sql)
+                //刪除舊資料
+                + `;DELETE n1 FROM account_sub n1, account_sub n2`
+                + ` WHERE n1.id > n2.id AND n1.telegram_id = n2.telegram_id AND n1.user_name = n2.user_name AND n1.sub = n2.sub`
+                //只保留十筆
+                + `;DELETE  FROM account_sub WHERE user_name = '${acconut_info.user_name}' AND id not in(select t.id from (SELECT * FROM account_sub where user_name =  '${acconut_info.user_name}' limit 10)as t)`
+
             connection.query(sql, (err, rows) => {
                 connection.release() // return the connection to pool
 
                 if (!err) {
-                    //刪除舊資料
-                    merge_sub_data_dele_same(telegram_id)
-                    console.log(acconut_info.user_name)
                     resolve(acconut_info.user_name)
                 }
                 else {
@@ -386,42 +401,6 @@ async function merge_sub_data_input(telegram_id) {
 
 
 
-//刪除重復
-function merge_sub_data_dele_same(telegram_id) {
-
-    pool.getConnection((err, connection) => {
-
-        const sql =
-            ` DELETE n1 FROM account_sub n1, account_sub n2` +
-            ` WHERE n1.id > n2.id AND n1.telegram_id = n2.telegram_id AND n1.user_name = n2.user_name AND n1.sub = n2.sub`
-        connection.query(sql, (err, rows) => {
-            connection.release() // return the connection to pool
-
-            if (err)
-                console.log(err)
-        })
-    })
-
-}
-
-
-//刪除account_sub TG id訂閱資料
-function remove_account_sub_telegram_id(telegram_id) {
-
-    pool.getConnection((err, connection) => {
-
-        const sql = `UPDATE account_sub SET telegram_id=''WHERE telegram_id = '${telegram_id}'`
-
-        connection.query(sql, (err, rows) => {
-            connection.release() // return the connection to pool
-            if (err)
-                console.log(err)
-        })
-    })
-
-
-
-}
 
 
 //訂閱
@@ -459,4 +438,33 @@ function sub_send(sub_data, telegram_id, user_name) {
     })
 }
 
+
+
+//檢查訂閱上限
+
+
+
+
+function telegram_sub_count(telegram_id) {
+    return new Promise((resolve, reject) => {
+
+        pool.getConnection((err, connection) => {
+
+            const sql = `SELECT COUNT(sub) FROM account_sub WHERE telegram_id  = '${telegram_id}'`
+
+            connection.query(sql, (err, rows) => {
+                connection.release() // return the connection to pool
+
+                if (!err) {
+                    resolve(rows[0])
+                }
+                else console.log(err)
+
+            })
+        })
+
+    })
+
+
+}
 

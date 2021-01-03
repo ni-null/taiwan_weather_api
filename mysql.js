@@ -6,7 +6,8 @@ const pool = mysql.createPool({
     "host": "localhost",
     "user": "root",
     "password": "",
-    "database": "weather"
+    "database": "weather",
+    multipleStatements: true
 });
 
 

@@ -4,7 +4,11 @@ const bodyParser = require('body-parser')
 const compression = require('compression')
 const apicache = require('apicache')
 const redis = require("redis");
-const cacheWithRedis = apicache.options({ redisClient: redis.createClient() }).middleware
+const cacheWithRedis = apicache.options({
+    //排除緩存頭
+    headerBlacklist: ['access-control-allow-origin'],
+    redisClient: redis.createClient()
+}).middleware
 
 
 const app = express()
@@ -16,6 +20,7 @@ app.use(bodyParser.urlencoded({
 }))
 app.use(bodyParser.json())
 app.use(compression()) //壓縮
+app.disable('x-powered-by'); //關閉響應頭部
 /* express */
 
 
@@ -137,8 +142,12 @@ app.post('/account/login', async (req, res) => {
 
     const reslut = await account.check_login(data)
 
+
     if (reslut) {
+
+        res.cookie('user', req.body.user_name)
         req.session.userinfo = req.body.user_name;
+
         res.send("login_success:" + req.session.userinfo)
     }
 
@@ -196,8 +205,12 @@ app.delete('/account/login', (req, res) => {
 app.get('/account/login', (req, res) => {
 
     if (req.session.userinfo) {
+
         res.send("user_name:" + req.session.userinfo);
+
     } else {
+
+
         res.send(false);
     }
 
@@ -297,11 +310,23 @@ app.get('/city/:city_name', cacheWithRedis('3 minutes'), async (req, res) => {
 /*  telegram */
 
 
+/* 攔截非本地*/
+app.use('/telegram/', (req, res, next) => {
+
+    //  console.log(req.ip)
+
+
+    //  if (req.ip != ':ffff:127.0.0.1') return
+    next();
+
+})
+
+
 /*  telegram  新增訂閱 */
 app.put('/telegram/sub', async (req, res) => {
 
 
-    const reslut = telegram.add_sub(req.body.telegram_id, req.body.sub_data, req.body.telegram_username)
+    const reslut = await telegram.add_sub(req.body.telegram_id, req.body.sub_data, req.body.telegram_username)
 
     res.send(reslut)
 
@@ -319,6 +344,8 @@ app.delete('/telegram/sub', async (req, res) => {
 })
 
 
+
+
 /*  telegram 獲取訂閱 */
 
 app.get('/telegram/sub/:telegram_id', async (req, res) => {
@@ -331,9 +358,13 @@ app.get('/telegram/sub/:telegram_id', async (req, res) => {
 })
 
 
+
+
 /*  telegram  檢查綁定狀態 */
 
 app.get('/telegram/bind/:telegram_id', async (req, res) => {
+
+
 
     const reslut = await telegram.bind_user_check([req.params.telegram_id])
 
