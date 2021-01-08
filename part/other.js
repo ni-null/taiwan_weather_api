@@ -5,7 +5,7 @@ const pool = require('../mysql');
 module.exports = {
 
 
-
+    //獲取天氣
     get_wather: function (city_name) {
 
 
@@ -31,6 +31,7 @@ module.exports = {
     }
     ,
 
+    //創建訂閱表
     creat_account_sub_table_in_mysql: function () {
 
 
@@ -58,6 +59,7 @@ module.exports = {
     }
     ,
 
+    //創建帳號表
     creat_account_table_in_mysql: function () {
 
 

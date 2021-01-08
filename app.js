@@ -33,7 +33,8 @@ app.use(cors({
         'https://weather.ninull.com',
         'http://weather.ninull.com']
     ,
-    credentials: true // enable set cookie
+    credentials: true,// enable set cookie
+
 }));
 /* 跨域設定 */
 
@@ -72,6 +73,7 @@ const sessionStore = new MySQLStore({
 
 
 //配置中間件
+
 app.use(session({
     key: 'aid',
     secret: "keyboard cat",
@@ -79,7 +81,7 @@ app.use(session({
     resave: false,
     saveUninitialized: true,
     cookie: ('name', 'value', {
-        maxAge: 2 * 60 * 60 * 1000,
+        maxAge: 48 * 60 * 60 * 1000,  //兩天過期
         secure: false,
         name: "seName",
         resave: false
@@ -111,6 +113,7 @@ other.creat_account_sub_table_in_mysql()
 // 防止捕獲圖標
 app.get('/favicon.ico', (req, res) => res.status(204));
 
+
 //註冊
 app.post('/account/register', async (req, res) => {
 
@@ -128,8 +131,9 @@ app.post('/account/register', async (req, res) => {
     res.send(reslut)
 
 
-
 })
+
+
 
 //登入
 
@@ -146,40 +150,14 @@ app.post('/account/login', async (req, res) => {
 
     if (reslut) {
 
-        res.cookie('user', req.body.user_name)
+
         req.session.userinfo = req.body.user_name;
+
 
         res.send("login_success:" + req.session.userinfo)
     }
 
     else res.send(false)
-
-}
-
-)
-
-//修改密碼
-app.post('/account/change_password', async (req, res) => {
-    if (req.session.userinfo) {
-        const data = {
-            user_name: req.session.userinfo,
-            user_passowrd_old: req.body.user_passowrd_old,
-            user_passowrd_new: req.body.user_passowrd_new
-        }
-
-
-        const reslut = await account.change_passowrd(data)
-
-        if (reslut) {
-            res.send(true)
-        }
-        else {
-            res.send(false)
-        }
-
-    }
-
-    else res.send('login_fail')
 
 }
 
@@ -201,63 +179,89 @@ app.delete('/account/login', (req, res) => {
     });
 });
 
+
+/* session 驗證*/
+
+app.use('/account/', (req, res, next) => {
+
+    //  console.log(req.ip)
+
+    if (req.session.userinfo) {
+
+
+        next();
+
+    } else {
+        res.send('login_fail');
+    }
+
+
+
+
+})
+
+
+
+
 //檢查登入
 
 app.get('/account/login', (req, res) => {
 
-    if (req.session.userinfo) {
-
-        res.send("user_name:" + req.session.userinfo);
-
-    } else {
+    res.send("user_name:" + req.session.userinfo);
+})
 
 
-        res.send(false);
+//修改密碼
+app.post('/account/change_password', async (req, res) => {
+
+    const data = {
+        user_name: req.session.userinfo,
+        user_passowrd_old: req.body.user_passowrd_old,
+        user_passowrd_new: req.body.user_passowrd_new
     }
 
 
-})
+    const reslut = await account.change_passowrd(data)
+
+    if (reslut) {
+        res.send(true)
+    }
+    else {
+        res.send(false)
+    }
+
+
+
+}
+
+)
+
+
+
 
 
 //新增訂閱
 app.put('/account/user/sub', async (req, res) => {
 
-    if (req.session.userinfo) {
-
-        const reslut = await user.add_sub(req.session.userinfo, req.body.sub_data)
-        res.send(reslut)
-
-    } else {
-        res.send('login_fail');
-    }
-
+    const reslut = await user.add_sub(req.session.userinfo, req.body.sub_data)
+    res.send(reslut)
 
 })
 
 //刪除訂閱
 app.delete('/account/user/sub', async (req, res) => {
-    if (req.session.userinfo) {
 
-        const reslut = user.delete_sub(req.session.userinfo, req.body.sub)
-        res.send(reslut)
+    const reslut = user.delete_sub(req.session.userinfo, req.body.sub)
+    res.send(reslut)
 
-    } else {
-        res.send('login_fail');
-    }
 
 })
 
 //獲取訂閱
 app.get('/account/user/sub', async (req, res) => {
 
-    if (req.session.userinfo) {
-
-        const reslut = await user.get_sub(req.session.userinfo)
-        res.send(reslut)
-
-    } else {
-        res.send('login_fail');
-    }
+    const reslut = await user.get_sub(req.session.userinfo)
+    res.send(reslut)
 
 })
 
@@ -266,24 +270,16 @@ app.get('/account/user/sub', async (req, res) => {
 app.get('/account/telegram', async (req, res) => {
 
 
-    if (req.session.userinfo) {
 
-        const result = await account.get_telegram(req.session.userinfo)
+    const result = await account.get_telegram(req.session.userinfo)
 
-        if (result) {
-            if (result.telegram_username == '')
-                res.send('bind_code:' + result.bind_code);
-            else
-                res.send('telegram_username:' + result.telegram_username);
+    if (result) {
+        if (result.telegram_username == '')
+            res.send('bind_code:' + result.bind_code);
+        else
+            res.send('telegram_username:' + result.telegram_username);
 
-        }
-    } else {
-        res.send('login_fail');
     }
-
-
-
-
 
 
 })
@@ -310,14 +306,14 @@ app.get('/city/:city_name', cacheWithRedis('3 minutes'), async (req, res) => {
 /*  telegram */
 /*  telegram */
 
-
 /* 攔截非本地*/
 app.use('/telegram/', (req, res, next) => {
 
     //  console.log(req.ip)
 
 
-    //  if (req.ip != ':ffff:127.0.0.1') return
+    if (req.ip != '::ffff:127.0.0.1') res.send("not allow")
+
     next();
 
 })
@@ -397,5 +393,16 @@ app.delete('/telegram/bind', async (req, res) => {
 })
 
 
+/*  telegram  修改綁定用戶密碼 */
+
+app.post('/telegram/bind_user_re_pas', async (req, res) => {
+
+
+    const reslut = await telegram.re_pas(req.body.telegram_id)
+
+    res.send(reslut)
+
+
+})
 
 

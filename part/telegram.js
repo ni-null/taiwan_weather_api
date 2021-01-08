@@ -8,7 +8,7 @@ const md5 = require('md5');
 module.exports = {
 
 
-
+    //新增訂閱
     add_sub: async function (telegram_id, sub_data, telegram_username) {
 
 
@@ -33,10 +33,9 @@ module.exports = {
         return sub_result
 
 
-    }
+    },
 
-    ,
-
+    //獲取訂閱
     get_sub: function (telegram_id) {
 
         return new Promise((resolve, reject) => {
@@ -63,8 +62,9 @@ module.exports = {
 
         )
 
-    }
-    ,
+    },
+
+    //刪除訂閱
     delete_sub: function (telegram_id, sub) {
 
 
@@ -94,9 +94,9 @@ module.exports = {
 
         )
 
-    }
+    },
 
-    ,
+    //綁定檢查
     bind_user_check: async function (telegram_id) {
 
 
@@ -109,8 +109,9 @@ module.exports = {
         else return null
 
 
-    }
-    ,
+    },
+
+    //綁定使用者
     bind_user: async function (telegram_id, bind_code, telegram_username) {
 
         //檢查綁定碼，bind_code_result 取得用戶名
@@ -136,8 +137,9 @@ module.exports = {
 
         else return '帳號合併失敗'
 
-    }
-    ,
+    },
+
+    //解除綁定
     unbind_user: async function (telegram_id) {
 
 
@@ -150,6 +152,23 @@ module.exports = {
         const acconut_bind_un_bild_result = await acconut_bind_un_bild(telegram_id)
 
         if (acconut_bind_un_bild_result) return '解除綁定成功'
+
+
+    },
+
+    //重置密碼
+
+    re_pas: async function (telegram_id) {
+
+        //新密碼
+        const new_pas = generatePassword()
+
+        const result = await change_pas(telegram_id, md5(new_pas))
+
+        if (result) return new_pas
+
+        else return result
+
 
 
     }
@@ -400,9 +419,6 @@ async function merge_sub_data_input(telegram_id) {
 }
 
 
-
-
-
 //訂閱
 function sub_send(sub_data, telegram_id, user_name) {
 
@@ -442,9 +458,6 @@ function sub_send(sub_data, telegram_id, user_name) {
 
 //檢查訂閱上限
 
-
-
-
 function telegram_sub_count(telegram_id) {
     return new Promise((resolve, reject) => {
 
@@ -468,3 +481,49 @@ function telegram_sub_count(telegram_id) {
 
 }
 
+
+//修改綁定密碼
+
+function change_pas(telegram_id, new_pas) {
+    return new Promise((resolve, reject) => {
+
+        pool.getConnection((err, connection) => {
+
+
+            const sql = `UPDATE account SET user_passowrd='${new_pas}' WHERE telegram_id = '${telegram_id}'`
+
+            console.log(sql)
+            connection.query(sql, (err, rows) => {
+                connection.release() // return the connection to pool
+
+                if (!err) {
+                    resolve(true)
+                }
+                else {
+                    resolve(false)
+                    console.log(err)
+                }
+
+
+
+            })
+        })
+
+    })
+
+
+}
+
+
+//隨機密碼產生
+
+
+function generatePassword() {
+    var length = 8,
+        charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        retVal = "";
+    for (var i = 0, n = charset.length; i < length; ++i) {
+        retVal += charset.charAt(Math.floor(Math.random() * n));
+    }
+    return retVal;
+}

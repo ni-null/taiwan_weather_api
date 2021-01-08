@@ -2,6 +2,8 @@ const pool = require('../mysql');
 
 
 module.exports = {
+
+    //創建帳號
     creat_account: async function (data) {
 
         //檢查用戶存在
@@ -48,7 +50,7 @@ module.exports = {
 
 
     },
-
+    //檢查登入
     check_login: async function (data) {
 
         //檢查用戶名是否存在
@@ -74,6 +76,7 @@ module.exports = {
 
     }
     ,
+    //修改密碼
     change_passowrd: async function (data) {
 
 
@@ -96,6 +99,7 @@ module.exports = {
 
     }
     ,
+    //獲取telegram_username,bind_code
     get_telegram: async function (user_name) {
 
         const result = await get_telegram_data(user_name)

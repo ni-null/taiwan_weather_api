@@ -1,6 +1,6 @@
 const pool = require('../mysql');
 
-
+/* 使用者功能 */
 
 module.exports = {
 
@@ -58,9 +58,7 @@ module.exports = {
 
         )
 
-    }
-
-    ,
+    },
 
     //獲取訂閱
     get_sub: function (user_name) {
@@ -90,8 +88,9 @@ module.exports = {
 
         )
 
-    }
-    ,
+    },
+
+    //刪除訂閱
     delete_sub: function (user_name, sub) {
 
         return new Promise((resolve, reject) => {
