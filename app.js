@@ -311,6 +311,8 @@ app.use('/telegram/', (req, res, next) => {
 
     //  console.log(req.ip)
 
+    console.log(req.ip)
+
 
     if (req.ip != '::ffff:127.0.0.1') res.send("not allow")
 
