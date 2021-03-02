@@ -188,7 +188,7 @@ function check_acconut_exist(telegram_id, telegram_username) {
 
 
             const sql =
-                `insert into account  (telegram_id,telegram_username)Select '${telegram_id}','${telegram_username}'`
+                `insert into account  (telegram_id,telegram_username,user_name)Select '${telegram_id}','${telegram_username}',''`
                 +
                 `Where not exists(select 1 from account where telegram_id='${telegram_id}')`
 
