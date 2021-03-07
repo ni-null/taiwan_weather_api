@@ -111,7 +111,7 @@ app.get("/favicon.ico", (req, res) => res.status(204))
 app.post("/account/register", async (req, res) => {
   const data = {
     user_name: req.body.user_name,
-    user_passowrd: req.body.user_passowrd,
+    user_password: req.body.user_password,
     telegram_id: "",
     telegram_username: "",
     bind_code: req.body.bind_code,
@@ -125,17 +125,18 @@ app.post("/account/register", async (req, res) => {
 //登入
 
 app.post("/account/login", async (req, res) => {
+  console.log(res.body)
   const data = {
     user_name: req.body.user_name,
-    user_passowrd: req.body.user_passowrd,
+    user_password: req.body.user_password,
   }
 
   const result = await account.check_login(data)
 
   if (result) {
-    req.session.userinfo = req.body.user_name
+    req.session.user_info = req.body.user_name
 
-    res.send("login_success:" + req.session.userinfo)
+    res.send("login_success:" + req.session.user_info)
   } else res.send(false)
 })
 
@@ -157,7 +158,7 @@ app.delete("/account/login", (req, res) => {
 app.use("/account/", (req, res, next) => {
   //  console.log(req.ip)
 
-  if (req.session.userinfo) {
+  if (req.session.user_info) {
     next()
   } else {
     res.send("login_fail")
@@ -167,18 +168,18 @@ app.use("/account/", (req, res, next) => {
 //檢查登入
 
 app.get("/account/login", (req, res) => {
-  res.send("user_name:" + req.session.userinfo)
+  res.send("user_name:" + req.session.user_info)
 })
 
 //修改密碼
 app.post("/account/change_password", async (req, res) => {
   const data = {
-    user_name: req.session.userinfo,
-    user_passowrd_old: req.body.user_passowrd_old,
-    user_passowrd_new: req.body.user_passowrd_new,
+    user_name: req.session.user_info,
+    user_password_old: req.body.user_password_old,
+    user_password_new: req.body.user_password_new,
   }
 
-  const result = await account.change_passowrd(data)
+  const result = await account.change_password(data)
 
   if (result) {
     res.send(true)
@@ -189,25 +190,25 @@ app.post("/account/change_password", async (req, res) => {
 
 //新增訂閱
 app.put("/account/user/sub", async (req, res) => {
-  const result = await user.add_sub(req.session.userinfo, req.body.sub_data)
+  const result = await user.add_sub(req.session.user_info, req.body.sub_data)
   res.send(result)
 })
 
 //刪除訂閱
 app.delete("/account/user/sub", async (req, res) => {
-  const result = user.delete_sub(req.session.userinfo, req.body.sub)
+  const result = user.delete_sub(req.session.user_info, req.body.sub)
   res.send(result)
 })
 
 //獲取訂閱
 app.get("/account/user/sub", async (req, res) => {
-  const result = await user.get_sub(req.session.userinfo)
+  const result = await user.get_sub(req.session.user_info)
   res.send(result)
 })
 
 //獲取telegram code
 app.get("/account/telegram", async (req, res) => {
-  const result = await account.get_telegram(req.session.userinfo)
+  const result = await account.get_telegram(req.session.user_info)
 
   if (result) {
     if (result.telegram_username == "") res.send("bind_code:" + result.bind_code)

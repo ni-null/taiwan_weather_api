@@ -49,7 +49,7 @@ module.exports = {
       const sql = `create table if not exists account(
                 id int primary key auto_increment,
                 user_name varchar(128) ,
-                user_passowrd varchar(128) ,
+                user_password varchar(128) ,
                 telegram_id varchar(128) ,
                 telegram_username varchar(255)  ,
                 bind_code  varchar(128) 
